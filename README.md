@@ -4,7 +4,7 @@ JobConnect is a comprehensive job board platform that connects job seekers with 
 
 ## 🌐 Live Demo
 
-**Deployed Application:** https://e5h6i7c0ewk9.manus.space
+**Deployed Application:** 
 
 ## ✨ Features
 
