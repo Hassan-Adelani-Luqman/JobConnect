@@ -221,7 +221,7 @@ JobConnect/
 
 ## 🚀 Deployment
 
-The application is deployed using Manus deployment services:
+The application is deployed using:
 
 - **Backend Deployment** - Flask application with integrated frontend
 - **Database** - SQLite database with automatic initialization
@@ -260,14 +260,6 @@ This project was built as a complete job board solution. For modifications or en
 ## 📄 License
 
 This project is built for demonstration purposes. Feel free to use and modify as needed.
-
-## 🆘 Support
-
-For questions or issues:
-- Check the deployed application: https://e5h6i7c0ewk9.manus.space
-- Review the code structure and comments
-- Test the API endpoints using the provided documentation
-
 ---
 
 **Built with ❤️ using React.js, Flask, and modern web technologies**
