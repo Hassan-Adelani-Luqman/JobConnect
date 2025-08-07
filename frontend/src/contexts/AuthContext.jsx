@@ -11,7 +11,11 @@ export const useAuth = () => {
   return context
 }
 
-const API_BASE_URL = 'http://localhost:5001/api'
+// Configure API base URL based on environment
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? '/api' // Use relative path in production (same domain)
+  : 'http://localhost:5001/api' // Use localhost in development
+
 // Configure axios defaults
 axios.defaults.baseURL = API_BASE_URL
 
