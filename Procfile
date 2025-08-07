@@ -1,1 +1,1 @@
-web: cd backend && python -m src.main
+web: bash start.sh
