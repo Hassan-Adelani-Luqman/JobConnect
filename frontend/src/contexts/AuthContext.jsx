@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import axios from 'axios'
+import config from '../config'
 
 const AuthContext = createContext()
 
@@ -11,13 +12,8 @@ export const useAuth = () => {
   return context
 }
 
-// Configure API base URL based on environment
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api' // Use relative path in production (same domain)
-  : 'http://localhost:5001/api' // Use localhost in development
-
 // Configure axios defaults
-axios.defaults.baseURL = API_BASE_URL
+axios.defaults.baseURL = config.API_BASE_URL
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
