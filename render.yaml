@@ -1,0 +1,22 @@
+services:
+  # Backend service (Flask API + Static Frontend)
+  - type: web
+    name: jobconnect-app
+    env: python
+    buildCommand: |
+      # Install backend dependencies
+      pip install -r backend/requirements.txt
+      # Install frontend dependencies and build
+      cd frontend && npm install && npm run build
+      # Copy built frontend to backend static folder
+      cp -r dist/* ../backend/src/static/
+    startCommand: cd backend && python -m src.main
+    healthCheckPath: /
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+    plan: free
