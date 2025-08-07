@@ -13,8 +13,8 @@ from src.routes.auth import auth_bp
 from src.routes.jobs import jobs_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
-app.config['JWT_SECRET_KEY'] = 'jwt-secret-string'  # Change this in production
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-string')
 
 # Initialize CORS
 CORS(app)
@@ -62,4 +62,5 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=False, host='0.0.0.0', port=port)
