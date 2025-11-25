@@ -24,6 +24,9 @@ class Job(db.Model):
     # Relationship to applications
     applications = db.relationship('Application', backref='job', lazy=True, cascade='all, delete-orphan')
     
+    # Relationship to saved jobs
+    saved_by = db.relationship('SavedJob', backref='job', lazy=True, cascade='all, delete-orphan')
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -47,6 +50,7 @@ class Application(db.Model):
     status = db.Column(db.String(50), default='Applied')  # Applied, Under Review, Accepted, Rejected
     applied_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    cover_letter = db.Column(db.Text, nullable=True)
     
     # Foreign keys
     job_id = db.Column(db.Integer, db.ForeignKey('jobs.id'), nullable=False)
@@ -64,10 +68,36 @@ class Application(db.Model):
             'status': self.status,
             'applied_at': self.applied_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
+            'cover_letter': self.cover_letter,
             'job_id': self.job_id,
             'job_title': self.job.title if self.job else None,
             'applicant_id': self.applicant_id,
             'applicant_name': f"{self.applicant.first_name} {self.applicant.last_name}" if self.applicant else None,
             'applicant_email': self.applicant.email if self.applicant else None
+        }
+
+class SavedJob(db.Model):
+    __tablename__ = 'saved_jobs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    saved_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Foreign keys
+    job_id = db.Column(db.Integer, db.ForeignKey('jobs.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('saved_jobs', lazy=True))
+    
+    # Unique constraint to prevent duplicate saves
+    __table_args__ = (db.UniqueConstraint('job_id', 'user_id', name='unique_saved_job'),)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'saved_at': self.saved_at.isoformat(),
+            'job_id': self.job_id,
+            'user_id': self.user_id,
+            'job': self.job.to_dict() if self.job else None
         }
 

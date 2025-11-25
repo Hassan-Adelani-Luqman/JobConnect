@@ -1,35 +1,49 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
+import config from '../config'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ArrowLeft, MapPin, Clock, Calendar, Building, Loader2, CheckCircle } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { ArrowLeft, MapPin, Clock, Calendar, Building, Loader2, CheckCircle, Heart, HeartOff } from 'lucide-react'
 
 const JobDetailPage = () => {
   const { id } = useParams()
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const navigate = useNavigate()
   const [job, setJob] = useState(null)
   const [loading, setLoading] = useState(true)
   const [applying, setApplying] = useState(false)
+  const [savingJob, setSavingJob] = useState(false)
+  const [isSaved, setIsSaved] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [hasApplied, setHasApplied] = useState(false)
+  const [coverLetter, setCoverLetter] = useState('')
+  const [resumeFile, setResumeFile] = useState(null)
+  const [resumeUploading, setResumeUploading] = useState(false)
+  const [resumeUploadError, setResumeUploadError] = useState('')
+  const applySectionRef = useRef(null)
 
   useEffect(() => {
     fetchJob()
     if (user && user.role === 'job_seeker') {
       checkApplicationStatus()
+      checkSavedStatus()
     }
   }, [id, user])
 
   const fetchJob = async () => {
     try {
-      const response = await axios.get(`/jobs/${id}`)
+      const response = await axios.get(`${config.API_BASE_URL}/jobs/${id}`)
       setJob(response.data.job)
+      // If user is logged in as job seeker, the API should include is_saved status
+      if (response.data.job.is_saved !== undefined) {
+        setIsSaved(response.data.job.is_saved)
+      }
     } catch (error) {
       console.error('Error fetching job:', error)
       setError('Job not found')
@@ -49,6 +63,47 @@ const JobDetailPage = () => {
     }
   }
 
+  const checkSavedStatus = async () => {
+    try {
+      const response = await axios.get(`${config.API_BASE_URL}/jobs/${id}/is-saved`)
+      setIsSaved(response.data.is_saved)
+    } catch (error) {
+      console.error('Error checking saved status:', error)
+    }
+  }
+
+  const handleSaveJob = async () => {
+    if (!user || user.role !== 'job_seeker') return
+    
+    try {
+      setSavingJob(true)
+      await axios.post(`${config.API_BASE_URL}/jobs/${id}/save`)
+      setIsSaved(true)
+      setSuccess('Job saved successfully!')
+    } catch (error) {
+      console.error('Error saving job:', error)
+      setError('Failed to save job')
+    } finally {
+      setSavingJob(false)
+    }
+  }
+
+  const handleUnsaveJob = async () => {
+    if (!user || user.role !== 'job_seeker') return
+    
+    try {
+      setSavingJob(true)
+      await axios.delete(`${config.API_BASE_URL}/jobs/${id}/unsave`)
+      setIsSaved(false)
+      setSuccess('Job removed from saved list!')
+    } catch (error) {
+      console.error('Error unsaving job:', error)
+      setError('Failed to unsave job')
+    } finally {
+      setSavingJob(false)
+    }
+  }
+
   const handleApply = async () => {
     if (!user) {
       navigate('/login')
@@ -64,7 +119,38 @@ const JobDetailPage = () => {
     setError('')
 
     try {
-      await axios.post(`/jobs/${id}/apply`)
+      // If the user selected a resume file, upload it first
+      if (resumeFile) {
+        setResumeUploadError('')
+        setResumeUploading(true)
+        const formData = new FormData()
+        formData.append('file', resumeFile)
+        try {
+          await axios.post('/users/upload-resume', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          })
+          // Refresh user profile so we have the filename available
+          try {
+            const profileResp = await axios.get('/users/profile')
+            // update local auth user so UI can immediately show the uploaded resume
+            if (profileResp?.data?.user && typeof updateUser === 'function') {
+              updateUser(profileResp.data.user)
+            }
+          } catch (err) {
+            // ignore profile refresh failure
+          }
+        } catch (err) {
+          console.error('Resume upload failed', err)
+          setResumeUploadError(err.response?.data?.error || 'Failed to upload resume')
+          setResumeUploading(false)
+          setApplying(false)
+          return
+        } finally {
+          setResumeUploading(false)
+        }
+      }
+
+      await axios.post(`/jobs/${id}/apply`, { cover_letter: coverLetter })
       setSuccess('Application submitted successfully!')
       setHasApplied(true)
     } catch (error) {
@@ -147,19 +233,48 @@ const JobDetailPage = () => {
                 </div>
               )}
             </div>
-            <div className="ml-6">
+            <div className="ml-6 flex items-center space-x-3">
               {user && user.role === 'job_seeker' && (
-                hasApplied ? (
-                  <Badge className="bg-green-100 text-green-800 px-4 py-2">
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Applied
-                  </Badge>
-                ) : (
-                  <Button onClick={handleApply} disabled={applying} size="lg">
-                    {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {applying ? 'Applying...' : 'Apply Now'}
+                <>
+                  {hasApplied ? (
+                    <Badge className="bg-green-100 text-green-800 px-4 py-2">
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Applied
+                    </Badge>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        // Scroll to application section instead of submitting immediately
+                        if (applySectionRef.current) {
+                          applySectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                      }}
+                      disabled={applying}
+                      size="lg"
+                    >
+                      {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {applying ? 'Preparing...' : 'Apply Now'}
+                    </Button>
+                  )}
+                  
+                  {/* Save/Unsave Button */}
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={isSaved ? handleUnsaveJob : handleSaveJob}
+                    disabled={savingJob}
+                    className={isSaved ? "text-red-600 border-red-600 hover:bg-red-50" : "text-gray-600 hover:text-red-600"}
+                  >
+                    {savingJob ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : isSaved ? (
+                      <Heart className="mr-2 h-4 w-4 fill-current" />
+                    ) : (
+                      <HeartOff className="mr-2 h-4 w-4" />
+                    )}
+                    {savingJob ? 'Saving...' : isSaved ? 'Saved' : 'Save Job'}
                   </Button>
-                )
+                </>
               )}
               {!user && (
                 <Button onClick={() => navigate('/login')} size="lg">
@@ -223,20 +338,63 @@ const JobDetailPage = () => {
             </div>
 
             {user && user.role === 'job_seeker' && !hasApplied && (
-              <div className="border-t pt-6">
+              <div className="border-t pt-6" ref={applySectionRef}>
                 <div className="bg-blue-50 rounded-lg p-6">
                   <h4 className="font-medium text-blue-900 mb-2">Ready to apply?</h4>
                   <p className="text-blue-700 mb-4">
                     Make sure your profile is complete and your resume is up to date before applying.
                   </p>
-                  <div className="flex gap-3">
-                    <Button onClick={handleApply} disabled={applying}>
-                      {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {applying ? 'Applying...' : 'Apply for this Job'}
-                    </Button>
-                    <Button variant="outline" onClick={() => navigate('/profile')}>
-                      Update Profile
-                    </Button>
+                  <div className="space-y-4">
+                    {/* Resume upload / selection */}
+                    <div className="space-y-2">
+                      {user?.resume_filename ? (
+                        <div className="text-sm text-gray-700">
+                          Current resume: 
+                          <a
+                            className="text-blue-600 underline ml-2"
+                            href={`${config.API_BASE_URL.replace(/\/$/, '')}/users/resume/${user.resume_filename}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            View resume
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-700">No resume uploaded yet.</div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="resume-file"
+                          type="file"
+                          accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif"
+                          onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                          className="text-sm"
+                        />
+                        {resumeFile && (
+                          <div className="text-sm text-gray-700">Selected: {resumeFile.name}</div>
+                        )}
+                      </div>
+                      {resumeUploadError && (
+                        <Alert variant="destructive">
+                          <AlertDescription>{resumeUploadError}</AlertDescription>
+                        </Alert>
+                      )}
+                    </div>
+                    <Textarea
+                      placeholder="Write a short cover letter or message to the employer (optional)"
+                      value={coverLetter}
+                      onChange={(e) => setCoverLetter(e.target.value)}
+                      rows={4}
+                    />
+                    <div className="flex gap-3">
+                      <Button onClick={handleApply} disabled={applying}>
+                        {applying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {applying ? 'Applying...' : 'Apply for this Job'}
+                      </Button>
+                      <Button variant="outline" onClick={() => navigate('/profile')}>
+                        Update Profile
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

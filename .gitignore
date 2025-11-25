@@ -1,1 +1,49 @@
+# Environment variables
 .env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Backend
+backend/src/database/*.db
+backend/src/database/*.db-journal
+backend/src/uploads/*
+!backend/src/uploads/.gitkeep
+backend/backend_server.log
+*.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend static (generated from frontend build)
+backend/src/static/*
+!backend/src/static/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+backend/test_*.png
+backend/test_*.txt
+backend/test_*.pdf
+
+# Temporary files
+*.tmp
+*.bak

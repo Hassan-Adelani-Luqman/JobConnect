@@ -16,8 +16,8 @@ app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'sta
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-string')
 
-# Initialize CORS
-CORS(app)
+# Initialize CORS (allow credentials for refresh token cookie)
+CORS(app, supports_credentials=True)
 
 # Initialize JWT
 jwt = JWTManager(app)

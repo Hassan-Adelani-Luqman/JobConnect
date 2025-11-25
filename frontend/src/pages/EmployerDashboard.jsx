@@ -21,6 +21,7 @@ const EmployerDashboard = () => {
   const [editingJob, setEditingJob] = useState(null)
   const [selectedJobApplications, setSelectedJobApplications] = useState([])
   const [showApplications, setShowApplications] = useState(false)
+  const [expandedApps, setExpandedApps] = useState({})
   
   const [jobForm, setJobForm] = useState({
     title: '',
@@ -56,6 +57,10 @@ const EmployerDashboard = () => {
       console.error('Error fetching applications:', error)
       setError('Failed to fetch applications')
     }
+  }
+
+  const toggleCoverLetter = (appId) => {
+    setExpandedApps(prev => ({ ...prev, [appId]: !prev[appId] }))
   }
 
   const handleJobFormChange = (e) => {
@@ -377,7 +382,7 @@ const EmployerDashboard = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            {selectedJobApplications.length === 0 ? (
+              {selectedJobApplications.length === 0 ? (
               <p className="text-center text-gray-500 py-8">No applications yet</p>
             ) : (
               selectedJobApplications.map((application) => (
@@ -395,6 +400,11 @@ const EmployerDashboard = () => {
                         <Badge className={getStatusColor(application.status)}>
                           {application.status}
                         </Badge>
+                        {application.cover_letter && (
+                          <Button variant="outline" size="sm" onClick={() => toggleCoverLetter(application.id)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Select
                           value={application.status}
                           onValueChange={(value) => updateApplicationStatus(application.id, value)}
@@ -411,6 +421,12 @@ const EmployerDashboard = () => {
                         </Select>
                       </div>
                     </div>
+                    {expandedApps[application.id] && (
+                      <div className="border-t mt-3 pt-3">
+                        <Label>Cover Letter</Label>
+                        <Textarea value={application.cover_letter || ''} readOnly rows={6} />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))

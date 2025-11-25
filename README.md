@@ -1,34 +1,57 @@
 # JobConnect - Job Board Platform
 
-JobConnect is a comprehensive job board platform that connects job seekers with employers. Built with React.js frontend and Flask backend, it provides a complete solution for job posting, searching, and application management.
+JobConnect is a comprehensive job board platform that connects job seekers with employers. Built with React.js frontend and Flask backend, it provides a complete solution for job posting, searching, application management, and administrative features.
 
 ## 🌐 Live Demo
 
-**Deployed Application:** 
+**Deployed Application:** [https://jobconnect-app.onrender.com](https://jobconnect-app.onrender.com)
+
+**Admin Test Account:**
+- Email: `admin@jobconnect.com`
+- Password: `admin123`
+
+**Test User Accounts:**
+- Job Seeker: `seeker@example.com` / `password123`
+- Employer: `employer@example.com` / `password123` 
 
 ## ✨ Features
 
 ### For Job Seekers
 - **User Registration & Authentication** - Create account with email and password
+- **Secure Logout** - Sign out safely with confirmation dialog
 - **Profile Management** - Complete profile with education, experience, and contact information
-- **Resume Upload** - Upload and manage resume files (PDF, DOC, DOCX, TXT)
-- **Job Search & Filtering** - Search jobs by title, location, company, and job type
-- **Job Applications** - Apply for jobs and track application status
+- **Resume Upload & Management** - Upload, view, and delete resume files (PDF, DOC, DOCX, TXT)
+- **Job Search & Filtering** - Search jobs by title, location, company, and job type with pagination
+- **Job Bookmarks/Saved Jobs** - Save jobs for later viewing and easy access
+- **Job Applications** - Apply for jobs with cover letters and resume upload
 - **Application Dashboard** - View all applications and their current status
+- **Enhanced UI/UX** - Modern responsive design with loading states and smooth interactions
 
 ### For Employers
 - **Company Profile** - Create detailed company profiles with description and logo
+- **Secure Logout** - Sign out safely with confirmation dialog
 - **Job Posting** - Post detailed job listings with requirements and deadlines
-- **Application Management** - Review and manage job applications
+- **Job Management** - Edit, update, and delete job postings
+- **Application Management** - Review and manage job applications with status updates
 - **Application Status Updates** - Update application status (Applied, Under Review, Accepted, Rejected)
-- **Employer Dashboard** - Manage multiple job postings from one interface
+- **Employer Dashboard** - Manage multiple job postings and view applicant statistics
+
+### For Administrators
+- **Admin Dashboard** - Comprehensive user management interface
+- **User Management** - View, search, and filter all users (job seekers, employers)
+- **User Deactivation** - Deactivate problematic users while protecting admin accounts
+- **Platform Statistics** - View user counts, active/inactive statistics, and role breakdowns
+- **Advanced Search** - Search users by name, email, company, role, or status
 
 ### General Features
-- **Responsive Design** - Works seamlessly on desktop and mobile devices
+- **Responsive Design** - Works seamlessly on desktop, tablet, and mobile devices
+- **Secure Authentication** - JWT-based authentication with refresh tokens and secure logout
 - **Real-time Updates** - Dynamic content loading and status updates
-- **Secure Authentication** - JWT-based authentication with password hashing
-- **File Upload Support** - Resume and company logo upload functionality
+- **File Upload Support** - Resume and company logo upload with validation
 - **Professional UI** - Modern design with Tailwind CSS and shadcn/ui components
+- **Enhanced Navigation** - Mobile-friendly navigation with role-based menu options
+- **Pagination & Loading States** - Efficient data handling with proper user feedback
+- **Error Handling** - Comprehensive error handling with user-friendly messages
 
 ## 🛠 Technology Stack
 
@@ -152,55 +175,78 @@ JobConnect/
 - `id` - Primary key
 - `email` - User email (unique)
 - `password_hash` - Hashed password
-- `role` - User role (job_seeker/employer)
+- `role` - User role (job_seeker/employer/admin)
 - `first_name`, `last_name` - Personal information
 - `phone` - Contact information
 - `education`, `experience` - Job seeker profile
 - `company_name`, `company_description`, `company_website` - Employer profile
 - `resume_filename`, `company_logo_filename` - File uploads
-- `created_at` - Registration timestamp
+- `is_active` - Account status
+- `created_at`, `updated_at` - Timestamps
 
 ### Jobs Table
 - `id` - Primary key
 - `title` - Job title
 - `description` - Job description
-- `skills` - Required skills (JSON array)
-- `job_type` - Employment type
+- `skills` - Required skills (comma-separated)
+- `job_type` - Employment type (Full-time, Part-time, Contract, Remote)
 - `location` - Job location
 - `deadline` - Application deadline
 - `employer_id` - Foreign key to Users
+- `is_active` - Job status
 - `created_at`, `updated_at` - Timestamps
 
 ### Applications Table
 - `id` - Primary key
 - `job_id` - Foreign key to Jobs
 - `applicant_id` - Foreign key to Users
-- `status` - Application status
-- `applied_at` - Application timestamp
+- `status` - Application status (Applied, Under Review, Accepted, Rejected)
+- `cover_letter` - Application cover letter
+- `applied_at`, `updated_at` - Timestamps
+- Unique constraint on (job_id, applicant_id)
+
+### Saved_Jobs Table
+- `id` - Primary key
+- `job_id` - Foreign key to Jobs
+- `user_id` - Foreign key to Users
+- `saved_at` - Timestamp when job was saved
+- Unique constraint on (job_id, user_id)
 
 ## 🔐 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
+- `POST /api/auth/login` - User login with JWT token generation
+- `POST /api/auth/logout` - User logout with token invalidation
+- `POST /api/auth/refresh` - Refresh JWT token
+- `GET /api/auth/me` - Get current user information
 
 ### User Management
 - `GET /api/users/profile` - Get user profile
 - `PUT /api/users/profile` - Update user profile
-- `POST /api/users/upload-resume` - Upload resume
+- `POST /api/users/upload-resume` - Upload resume file
+- `DELETE /api/users/delete-resume` - Delete user's resume
 - `POST /api/users/upload-logo` - Upload company logo
+- `GET /api/users/` - Get all users (admin only)
+- `PUT /api/users/{id}/deactivate` - Deactivate user (admin only)
 
 ### Job Management
-- `GET /api/jobs` - Get all jobs (with search/filter)
+- `GET /api/jobs` - Get all jobs with pagination and search/filter
 - `POST /api/jobs` - Create new job (employers only)
 - `GET /api/jobs/{id}` - Get job details
 - `PUT /api/jobs/{id}` - Update job (employers only)
 - `DELETE /api/jobs/{id}` - Delete job (employers only)
 - `GET /api/jobs/my-jobs` - Get employer's jobs
-- `POST /api/jobs/{id}/apply` - Apply for job
+- `POST /api/jobs/{id}/apply` - Apply for job with cover letter and resume
 - `GET /api/jobs/my-applications` - Get user's applications
 - `GET /api/jobs/{id}/applications` - Get job applications (employers only)
 - `PUT /api/jobs/applications/{id}/status` - Update application status
+
+### Saved Jobs (Bookmarks)
+- `GET /api/jobs/saved` - Get user's saved jobs with pagination
+- `POST /api/jobs/{id}/save` - Save a job for later
+- `DELETE /api/jobs/{id}/unsave` - Remove job from saved list
+- `GET /api/jobs/{id}/is-saved` - Check if job is saved by current user
 
 ## 🔒 Security Features
 

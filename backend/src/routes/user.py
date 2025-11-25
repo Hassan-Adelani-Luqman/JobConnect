@@ -5,8 +5,9 @@ import os
 from werkzeug.utils import secure_filename
 
 user_bp = Blueprint('user', __name__)
+# pylint: disable=broad-except  # Allow generic exception handling for API endpoints to return JSON errors uniformly
 
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -119,10 +120,62 @@ def upload_resume():
                 'filename': filename
             }), 200
         else:
-            return jsonify({'error': 'Invalid file type. Allowed: PDF, PNG, JPG, JPEG, GIF'}), 400
+            return jsonify({'error': 'Invalid file type. Allowed: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, GIF'}), 400
         
     except Exception as e:
         return jsonify({'error': 'Failed to upload resume', 'details': str(e)}), 500
+
+def _delete_resume_impl():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(int(current_user_id))
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if user.role != 'job_seeker':
+        return jsonify({'error': 'Only job seekers can delete resumes'}), 403
+    if not user.resume_filename:
+        return jsonify({'error': 'No resume to delete'}), 400
+
+    upload_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads')
+    file_path = os.path.join(upload_folder, user.resume_filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except Exception as rm_err:
+            current_app.logger.warning(f"Failed to delete resume file {file_path}: {rm_err}")
+    user.resume_filename = None
+    db.session.commit()
+    return jsonify({'message': 'Resume deleted successfully'}), 200
+
+@user_bp.route('/delete-resume', methods=['DELETE'])
+@jwt_required()
+def delete_resume():
+    """Primary RESTful endpoint to delete resume (DELETE)."""
+    try:
+        return _delete_resume_impl()
+    except Exception as err:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete resume', 'details': str(err)}), 500
+
+@user_bp.route('/delete-resume', methods=['POST'])
+@jwt_required()
+def delete_resume_post():
+    """Fallback POST endpoint for environments where DELETE may be blocked."""
+    try:
+        return _delete_resume_impl()
+    except Exception as err:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete resume', 'details': str(err)}), 500
+
+# Accept trailing slash for both methods to avoid 405 from proxies normalizing URLs
+@user_bp.route('/delete-resume/', methods=['DELETE','POST'])
+@jwt_required()
+def delete_resume_slash():
+    """Trailing-slash variant for resume deletion supporting DELETE and POST."""
+    try:
+        return _delete_resume_impl()
+    except Exception as err:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to delete resume', 'details': str(err)}), 500
 
 @user_bp.route('/upload-logo', methods=['POST'])
 @jwt_required()
@@ -165,7 +218,7 @@ def upload_logo():
                 'filename': filename
             }), 200
         else:
-            return jsonify({'error': 'Invalid file type. Allowed: PDF, PNG, JPG, JPEG, GIF'}), 400
+            return jsonify({'error': 'Invalid file type. Allowed: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, GIF'}), 400
         
     except Exception as e:
         return jsonify({'error': 'Failed to upload logo', 'details': str(e)}), 500
@@ -175,7 +228,7 @@ def get_resume(filename):
     try:
         upload_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads')
         return send_from_directory(upload_folder, filename)
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'File not found'}), 404
 
 @user_bp.route('/logo/<filename>', methods=['GET'])
@@ -183,7 +236,7 @@ def get_logo(filename):
     try:
         upload_folder = os.path.join(os.path.dirname(__file__), '..', 'uploads')
         return send_from_directory(upload_folder, filename)
-    except Exception as e:
+    except Exception:
         return jsonify({'error': 'File not found'}), 404
 
 # Admin routes

@@ -58,3 +58,19 @@ class User(db.Model):
             'company_website': self.company_website
         }
         return base_dict
+
+
+class RefreshToken(db.Model):
+    __tablename__ = 'refresh_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(128), unique=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    revoked = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('refresh_tokens', lazy=True))
+
+    def __repr__(self):
+        return f'<RefreshToken {self.token[:8]} for user {self.user_id}>'

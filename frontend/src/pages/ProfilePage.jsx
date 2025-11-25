@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import LogoutButton from '../components/LogoutButton'
 import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +9,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Upload, FileText, Image, Loader2, CheckCircle, User, Building } from 'lucide-react'
+import { Upload, FileText, Image, Loader2, CheckCircle, User, Building, ExternalLink } from 'lucide-react'
+import config from '../config'
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth()
@@ -85,7 +87,7 @@ const ProfilePage = () => {
 
     try {
       const endpoint = type === 'resume' ? '/users/upload-resume' : '/users/upload-logo'
-      const response = await axios.post(endpoint, formData, {
+      await axios.post(endpoint, formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -99,6 +101,66 @@ const ProfilePage = () => {
     } catch (error) {
       console.error('Error uploading file:', error)
       setError(error.response?.data?.error || `Failed to upload ${type}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDeleteResume = async () => {
+    if (!user?.resume_filename) return
+    if (!window.confirm('Delete your current resume? This action cannot be undone.')) return
+    setUploading(true)
+    setError('')
+    setSuccess('')
+    try {
+      try {
+        console.log('Attempting DELETE request to:', axios.defaults.baseURL + '/users/delete-resume')
+        console.log('Authorization header:', axios.defaults.headers.common['Authorization'])
+        
+        // Create separate axios instance to bypass response interceptors
+        const directAxios = axios.create({
+          baseURL: config.API_BASE_URL,
+          withCredentials: true,
+          headers: {
+            'Authorization': axios.defaults.headers.common['Authorization'],
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        const response = await directAxios.delete('/users/delete-resume')
+        console.log('DELETE request successful:', response.status, response.data)
+      } catch (delErr) {
+        console.log('DELETE failed with status:', delErr.response?.status)
+        console.log('DELETE error data:', delErr.response?.data)
+        console.log('DELETE error message:', delErr.message)
+        console.log('DELETE error config:', delErr.config)
+        
+        // Check if it's specifically a 405 Method Not Allowed
+        if (delErr?.response?.status === 405) {
+          console.log('Trying POST fallback due to 405')
+          const directAxios = axios.create({
+            baseURL: config.API_BASE_URL,
+            withCredentials: true,
+            headers: {
+              'Authorization': axios.defaults.headers.common['Authorization'],
+              'Content-Type': 'application/json'
+            }
+          })
+          const postResponse = await directAxios.post('/users/delete-resume')
+          console.log('POST fallback successful:', postResponse.status, postResponse.data)
+        } else {
+          // For other errors (like 400 "No resume to delete"), just throw them
+          throw delErr
+        }
+      }
+      const userResponse = await axios.get('/users/profile')
+      updateUser(userResponse.data.user)
+      setSuccess('Resume deleted successfully')
+    } catch (err) {
+      console.error('Final error status:', err.response?.status)
+      console.error('Final error data:', err.response?.data)
+      console.error('Final error message:', err.message)
+      setError(err.response?.data?.error || 'Failed to delete resume')
     } finally {
       setUploading(false)
     }
@@ -293,12 +355,31 @@ const ProfilePage = () => {
               <CardContent>
                 <div className="space-y-4">
                   {user.resume_filename && (
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                      <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-green-600 mr-2" />
-                        <span className="text-green-800">
-                          Current resume: {user.resume_filename}
-                        </span>
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <FileText className="h-5 w-5 text-green-600 mr-2" />
+                          <span className="text-green-800 font-medium">Current resume: {user.resume_filename}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleDeleteResume}
+                          disabled={uploading}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <a
+                          href={`${config.API_BASE_URL.replace(/\/$/, '')}/users/resume/${user.resume_filename}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-blue-600 hover:text-blue-500 underline"
+                        >
+                          View / Download <ExternalLink className="ml-1 h-3 w-3" />
+                        </a>
                       </div>
                     </div>
                   )}
@@ -313,14 +394,14 @@ const ProfilePage = () => {
                         <Input
                           id="resume-upload"
                           type="file"
-                          accept=".pdf,.doc,.docx,.txt"
+                          accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.gif"
                           onChange={(e) => handleFileUpload(e, 'resume')}
                           className="hidden"
                           disabled={uploading}
                         />
                       </Label>
                       <p className="text-sm text-gray-500">
-                        PDF, DOC, DOCX, or TXT files only
+                        Allowed: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, GIF
                       </p>
                     </div>
                   </div>
@@ -393,6 +474,25 @@ const ProfilePage = () => {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Logout Section */}
+      <Card className="mt-8 border-red-200">
+        <CardHeader>
+          <CardTitle className="text-red-600">Account Actions</CardTitle>
+          <CardDescription>
+            Sign out of your account securely
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LogoutButton 
+            variant="destructive"
+            showConfirmation={true}
+            className="w-full sm:w-auto"
+          >
+            Sign Out of Account
+          </LogoutButton>
+        </CardContent>
+      </Card>
     </div>
   )
 }

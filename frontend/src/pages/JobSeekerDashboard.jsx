@@ -1,24 +1,45 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
+import { config } from '../config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Search, MapPin, Clock, Building, Loader2 } from 'lucide-react'
+import { 
+  Search, 
+  MapPin, 
+  Clock, 
+  Building, 
+  Loader2, 
+  Heart, 
+  HeartOff,
+  ChevronLeft,
+  ChevronRight,
+  Bookmark
+} from 'lucide-react'
 
 const JobSeekerDashboard = () => {
   const [jobs, setJobs] = useState([])
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchLoading, setSearchLoading] = useState(false)
+  const [savingJob, setSavingJob] = useState(null)
   const [error, setError] = useState('')
   const [searchFilters, setSearchFilters] = useState({
     search: '',
     location: '',
     job_type: 'all'
+  })
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
+    perPage: 10
   })
 
   useEffect(() => {
@@ -26,16 +47,24 @@ const JobSeekerDashboard = () => {
     fetchApplications()
   }, [])
 
-  const fetchJobs = async (filters = {}) => {
+  const fetchJobs = async (filters = {}, page = 1) => {
     try {
       setSearchLoading(true)
       const params = new URLSearchParams()
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value)
+        if (value && value !== 'all') params.append(key, value)
       })
+      params.append('page', page)
+      params.append('per_page', 10)
       
-      const response = await axios.get(`/jobs?${params.toString()}`)
+      const response = await axios.get(`${config.API_BASE_URL}/jobs?${params.toString()}`)
       setJobs(response.data.jobs)
+      setPagination({
+        currentPage: response.data.current_page,
+        totalPages: response.data.pages,
+        total: response.data.total,
+        perPage: response.data.per_page
+      })
     } catch (error) {
       console.error('Error fetching jobs:', error)
       setError('Failed to fetch jobs')
@@ -46,7 +75,7 @@ const JobSeekerDashboard = () => {
 
   const fetchApplications = async () => {
     try {
-      const response = await axios.get('/jobs/my-applications')
+      const response = await axios.get(`${config.API_BASE_URL}/jobs/my-applications`)
       setApplications(response.data.applications)
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -57,7 +86,52 @@ const JobSeekerDashboard = () => {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    fetchJobs(searchFilters)
+    setPagination(prev => ({ ...prev, currentPage: 1 }))
+    fetchJobs(searchFilters, 1)
+  }
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchJobs(searchFilters, newPage)
+    }
+  }
+
+  const handleSaveJob = async (jobId) => {
+    try {
+      setSavingJob(jobId)
+      await axios.post(`${config.API_BASE_URL}/jobs/${jobId}/save`)
+      
+      // Update the job in the local state
+      setJobs(prevJobs => 
+        prevJobs.map(job => 
+          job.id === jobId ? { ...job, is_saved: true } : job
+        )
+      )
+    } catch (error) {
+      console.error('Error saving job:', error)
+      setError('Failed to save job')
+    } finally {
+      setSavingJob(null)
+    }
+  }
+
+  const handleUnsaveJob = async (jobId) => {
+    try {
+      setSavingJob(jobId)
+      await axios.delete(`${config.API_BASE_URL}/jobs/${jobId}/unsave`)
+      
+      // Update the job in the local state
+      setJobs(prevJobs => 
+        prevJobs.map(job => 
+          job.id === jobId ? { ...job, is_saved: false } : job
+        )
+      )
+    } catch (error) {
+      console.error('Error unsaving job:', error)
+      setError('Failed to unsave job')
+    } finally {
+      setSavingJob(null)
+    }
   }
 
   const handleFilterChange = (key, value) => {
@@ -71,6 +145,7 @@ const JobSeekerDashboard = () => {
       await axios.post(`/jobs/${jobId}/apply`)
       fetchApplications() // Refresh applications
       fetchJobs(searchFilters) // Refresh jobs to update application status
+      setError('') // Clear any previous errors
     } catch (error) {
       console.error('Error applying for job:', error)
       setError(error.response?.data?.error || 'Failed to apply for job')
@@ -172,32 +247,48 @@ const JobSeekerDashboard = () => {
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                          <Link to={`/job/${job.id}`} className="hover:text-blue-600">
-                            {job.title}
-                          </Link>
-                        </h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xl font-semibold text-gray-900">
+                            <Link to={`/job/${job.id}`} className="hover:text-blue-600">
+                              {job.title}
+                            </Link>
+                          </h3>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => job.is_saved ? handleUnsaveJob(job.id) : handleSaveJob(job.id)}
+                              disabled={savingJob === job.id}
+                              className={job.is_saved ? "text-red-600 hover:text-red-700" : "text-gray-500 hover:text-red-600"}
+                            >
+                              {savingJob === job.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : job.is_saved ? (
+                                <Heart className="h-4 w-4 fill-current" />
+                              ) : (
+                                <HeartOff className="h-4 w-4" />
+                              )}
+                            </Button>
+                            {hasApplied(job.id) ? (
+                              <Badge className="bg-green-100 text-green-800">Applied</Badge>
+                            ) : (
+                              <Button size="sm" onClick={() => applyForJob(job.id)}>
+                                Apply Now
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                         <div className="flex items-center text-gray-600 mb-2">
                           <Building className="h-4 w-4 mr-1" />
                           <span>{job.employer_name}</span>
-                        </div>
-                        <div className="flex items-center text-gray-600 mb-2">
+                          <span className="mx-2">•</span>
                           <MapPin className="h-4 w-4 mr-1" />
                           <span>{job.location}</span>
+                          <span className="mx-2">•</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {job.job_type}
+                          </Badge>
                         </div>
-                        <div className="flex items-center text-gray-600 mb-4">
-                          <Clock className="h-4 w-4 mr-1" />
-                          <span>{job.job_type}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {hasApplied(job.id) ? (
-                          <Badge className="bg-green-100 text-green-800">Applied</Badge>
-                        ) : (
-                          <Button onClick={() => applyForJob(job.id)}>
-                            Apply Now
-                          </Button>
-                        )}
                       </div>
                     </div>
                     
@@ -207,11 +298,16 @@ const JobSeekerDashboard = () => {
                     
                     {job.skills && job.skills.length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {job.skills.map((skill, index) => (
-                          <Badge key={index} variant="secondary">
+                        {job.skills.slice(0, 5).map((skill, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
                             {skill}
                           </Badge>
                         ))}
+                        {job.skills.length > 5 && (
+                          <Badge variant="outline" className="text-xs text-gray-500">
+                            +{job.skills.length - 5} more
+                          </Badge>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -219,6 +315,76 @@ const JobSeekerDashboard = () => {
               ))
             )}
           </div>
+          
+          {/* Results Summary and Pagination */}
+          {!searchLoading && jobs.length > 0 && (
+            <>
+              <div className="mt-6 mb-4 flex justify-between items-center">
+                <div className="text-sm text-gray-600">
+                  Showing {jobs.length} of {pagination.total} jobs
+                  {searchFilters.search && ` for "${searchFilters.search}"`}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Link to="/saved-jobs" className="text-blue-600 hover:text-blue-700 flex items-center text-sm">
+                    <Bookmark className="h-4 w-4 mr-1" />
+                    View Saved Jobs
+                  </Link>
+                </div>
+              </div>
+              
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {[...Array(Math.min(pagination.totalPages, 5))].map((_, i) => {
+                      let pageNum
+                      if (pagination.totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (pagination.currentPage <= 3) {
+                        pageNum = i + 1
+                      } else if (pagination.currentPage >= pagination.totalPages - 2) {
+                        pageNum = pagination.totalPages - 4 + i
+                      } else {
+                        pageNum = pagination.currentPage - 2 + i
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={pagination.currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Applications Sidebar */}
