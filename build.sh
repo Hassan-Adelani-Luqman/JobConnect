@@ -6,6 +6,12 @@
 echo "Installing backend dependencies..."
 pip install -r backend/requirements.txt
 
+# Run database migrations
+echo "Running database migrations..."
+cd backend
+alembic upgrade head
+cd ..
+
 # Change to frontend directory
 cd frontend
 
