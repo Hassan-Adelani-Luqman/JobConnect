@@ -36,11 +36,20 @@ target_metadata = db.metadata
 
 
 def get_sqlalchemy_url():
-    # Default to the sqlalchemy.url in alembic.ini; if not set, derive from app
+    # First, check for DATABASE_URL environment variable (production)
+    database_url = os.environ.get('DATABASE_URL')
+    if database_url:
+        # Fix for SQLAlchemy 1.4+ (postgres:// -> postgresql://)
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        return database_url
+    
+    # Second, check alembic.ini
     url = config.get_main_option('sqlalchemy.url')
     if url:
         return url
-    # Fallback: derive from application config (assumes standard layout)
+    
+    # Fallback: derive from application config (local SQLite)
     here = os.path.dirname(os.path.dirname(__file__))
     db_path = os.path.join(here, 'src', 'database', 'app.db')
     return f"sqlite:///{db_path}"

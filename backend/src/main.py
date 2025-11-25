@@ -28,7 +28,20 @@ app.register_blueprint(user_bp, url_prefix='/api/users')
 app.register_blueprint(jobs_bp, url_prefix='/api/jobs')
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+# Use PostgreSQL in production (Render), SQLite for local development
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Render provides DATABASE_URL, use PostgreSQL
+    # Fix for SQLAlchemy 1.4+ (postgres:// -> postgresql://)
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Local development with SQLite
+    db_path = os.path.join(os.path.dirname(__file__), 'database', 'app.db')
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{db_path}"
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
@@ -37,8 +50,10 @@ upload_dir = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(upload_dir, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = upload_dir
 
-with app.app_context():
-    db.create_all()
+# Only create tables if using SQLite (for PostgreSQL, use Alembic migrations)
+if not database_url:
+    with app.app_context():
+        db.create_all()
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
