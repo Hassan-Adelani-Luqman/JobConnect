@@ -1,5 +1,5 @@
 from datetime import datetime
-from src.models.user import db
+from models.user import db
 
 class Job(db.Model):
     __tablename__ = 'jobs'
