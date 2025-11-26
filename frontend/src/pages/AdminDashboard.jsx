@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
-import { config } from '../config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,7 +29,7 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true)
-      const response = await axios.get(`${config.API_BASE_URL}/users/`)
+      const response = await axios.get(`/users/`)
       setUsers(response.data.users)
     } catch (error) {
       console.error('Error fetching users:', error)
@@ -48,7 +47,7 @@ const AdminDashboard = () => {
     try {
       setError('')
       setSuccess('')
-      await axios.put(`${config.API_BASE_URL}/users/${userId}/deactivate`)
+      await axios.put(`/users/${userId}/deactivate`)
       setSuccess(`User ${userName} has been deactivated successfully`)
       fetchUsers() // Refresh the list
     } catch (error) {

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-import { config } from '../config'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -47,7 +46,7 @@ const SavedJobsPage = () => {
       setLoading(true)
       setError('')
       
-      const response = await axios.get(`${config.API_BASE_URL}/jobs/saved`, {
+      const response = await axios.get(`/jobs/saved`, {
         params: { page, per_page: 10 }
       })
       
@@ -70,7 +69,7 @@ const SavedJobsPage = () => {
   const handleUnsaveJob = async (jobId) => {
     try {
       setUnsavingJob(jobId)
-      await axios.delete(`${config.API_BASE_URL}/jobs/${jobId}/unsave`)
+      await axios.delete(`/jobs/${jobId}/unsave`)
       
       // Remove the job from the local state
       setSavedJobs(prevJobs => prevJobs.filter(savedJob => savedJob.job.id !== jobId))

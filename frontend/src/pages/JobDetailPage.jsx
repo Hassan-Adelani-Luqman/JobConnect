@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
-import config from '../config'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -38,7 +37,7 @@ const JobDetailPage = () => {
 
   const fetchJob = async () => {
     try {
-      const response = await axios.get(`${config.API_BASE_URL}/jobs/${id}`)
+      const response = await axios.get(`/jobs/${id}`)
       setJob(response.data.job)
       // If user is logged in as job seeker, the API should include is_saved status
       if (response.data.job.is_saved !== undefined) {
@@ -65,7 +64,7 @@ const JobDetailPage = () => {
 
   const checkSavedStatus = async () => {
     try {
-      const response = await axios.get(`${config.API_BASE_URL}/jobs/${id}/is-saved`)
+      const response = await axios.get(`/jobs/${id}/is-saved`)
       setIsSaved(response.data.is_saved)
     } catch (error) {
       console.error('Error checking saved status:', error)
@@ -77,7 +76,7 @@ const JobDetailPage = () => {
     
     try {
       setSavingJob(true)
-      await axios.post(`${config.API_BASE_URL}/jobs/${id}/save`)
+      await axios.post(`/jobs/${id}/save`)
       setIsSaved(true)
       setSuccess('Job saved successfully!')
     } catch (error) {
@@ -93,7 +92,7 @@ const JobDetailPage = () => {
     
     try {
       setSavingJob(true)
-      await axios.delete(`${config.API_BASE_URL}/jobs/${id}/unsave`)
+      await axios.delete(`/jobs/${id}/unsave`)
       setIsSaved(false)
       setSuccess('Job removed from saved list!')
     } catch (error) {

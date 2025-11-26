@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
-import { config } from '../config'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,7 +56,7 @@ const JobSeekerDashboard = () => {
       params.append('page', page)
       params.append('per_page', 10)
       
-      const url = `${config.API_BASE_URL}/jobs?${params.toString()}`
+      const url = `/jobs?${params.toString()}`
       console.log('Fetching jobs from:', url)
       
       const response = await axios.get(url)
@@ -82,7 +81,7 @@ const JobSeekerDashboard = () => {
 
   const fetchApplications = async () => {
     try {
-      const response = await axios.get(`${config.API_BASE_URL}/jobs/my-applications`)
+      const response = await axios.get(`/jobs/my-applications`)
       setApplications(response.data.applications)
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -106,7 +105,7 @@ const JobSeekerDashboard = () => {
   const handleSaveJob = async (jobId) => {
     try {
       setSavingJob(jobId)
-      await axios.post(`${config.API_BASE_URL}/jobs/${jobId}/save`)
+      await axios.post(`/jobs/${jobId}/save`)
       
       // Update the job in the local state
       setJobs(prevJobs => 
@@ -125,7 +124,7 @@ const JobSeekerDashboard = () => {
   const handleUnsaveJob = async (jobId) => {
     try {
       setSavingJob(jobId)
-      await axios.delete(`${config.API_BASE_URL}/jobs/${jobId}/unsave`)
+      await axios.delete(`/jobs/${jobId}/unsave`)
       
       // Update the job in the local state
       setJobs(prevJobs => 
