@@ -77,6 +77,9 @@ def get_jobs():
         }), 200
         
     except Exception as e:
+        import traceback
+        print(f"Error in get_jobs: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({'error': 'Failed to fetch jobs', 'details': str(e)}), 500
 
 @jobs_bp.route('/<int:job_id>', methods=['GET'])
@@ -109,11 +112,19 @@ def create_job():
             if not data.get(field):
                 return jsonify({'error': f'{field} is required'}), 400
         
+        # Handle skills - accept both array and comma-separated string
+        skills = data.get('skills', '')
+        if isinstance(skills, list):
+            import json
+            skills = json.dumps(skills)  # Store as JSON if it's an array
+        elif not skills:
+            skills = ''
+        
         # Create new job
         job = Job(
             title=data['title'].strip(),
             description=data['description'].strip(),
-            skills=data.get('skills', ''),
+            skills=skills,
             job_type=data['job_type'].strip(),
             location=data['location'].strip(),
             employer_id=int(current_user_id)

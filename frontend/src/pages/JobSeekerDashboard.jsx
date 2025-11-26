@@ -57,17 +57,24 @@ const JobSeekerDashboard = () => {
       params.append('page', page)
       params.append('per_page', 10)
       
-      const response = await axios.get(`${config.API_BASE_URL}/jobs?${params.toString()}`)
-      setJobs(response.data.jobs)
+      const url = `${config.API_BASE_URL}/jobs?${params.toString()}`
+      console.log('Fetching jobs from:', url)
+      
+      const response = await axios.get(url)
+      console.log('Jobs response:', response.data)
+      console.log('Number of jobs:', response.data.jobs?.length)
+      
+      setJobs(response.data.jobs || [])
       setPagination({
-        currentPage: response.data.current_page,
-        totalPages: response.data.pages,
-        total: response.data.total,
-        perPage: response.data.per_page
+        currentPage: response.data.current_page || 1,
+        totalPages: response.data.pages || 1,
+        total: response.data.total || 0,
+        perPage: response.data.per_page || 10
       })
     } catch (error) {
       console.error('Error fetching jobs:', error)
-      setError('Failed to fetch jobs')
+      console.error('Error details:', error.response?.data)
+      setError(error.response?.data?.error || 'Failed to fetch jobs')
     } finally {
       setSearchLoading(false)
     }
