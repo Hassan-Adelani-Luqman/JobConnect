@@ -28,11 +28,27 @@ class Job(db.Model):
     saved_by = db.relationship('SavedJob', backref='job', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self):
+        # Handle skills - check if it's JSON or comma-separated
+        skills_list = []
+        if self.skills:
+            try:
+                import json
+                # Try to parse as JSON first
+                skills_list = json.loads(self.skills) if isinstance(self.skills, str) else self.skills
+            except (json.JSONDecodeError, TypeError):
+                # Fall back to comma-separated
+                skills_list = [s.strip() for s in self.skills.split(',') if s.strip()]
+        
+        # Get employer name with fallback
+        employer_name = None
+        if self.employer:
+            employer_name = self.employer.company_name or self.employer.email or 'Unknown Company'
+        
         return {
             'id': self.id,
             'title': self.title,
             'description': self.description,
-            'skills': self.skills.split(',') if self.skills else [],
+            'skills': skills_list,
             'job_type': self.job_type,
             'location': self.location,
             'deadline': self.deadline.isoformat() if self.deadline else None,
@@ -40,7 +56,7 @@ class Job(db.Model):
             'updated_at': self.updated_at.isoformat(),
             'is_active': self.is_active,
             'employer_id': self.employer_id,
-            'employer_name': self.employer.company_name if self.employer else None
+            'employer_name': employer_name
         }
 
 class Application(db.Model):
